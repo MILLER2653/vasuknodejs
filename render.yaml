@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: vasuknodejs
+    runtime: node
+    rootDir: vasukhub-server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
