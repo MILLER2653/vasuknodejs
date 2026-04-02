@@ -735,7 +735,40 @@
     lightbox.className = 'lightbox';
     lightbox.id = 'lightbox';
     document.body.appendChild(lightbox);
-
+    let allUsers = [];        // [{ id, username, avatar_url }]
+    let onlineUserIds = new Set();
+    
+    async function fetchAllUsers() {
+        try {
+            const res = await fetch('/api/users', { credentials: 'include' });
+            if (res.ok) allUsers = await res.json();
+            else console.error('Не удалось загрузить пользователей');
+        } catch (err) { console.error(err); }
+    }
+    
+    function renderUsersList() {
+        const container = document.getElementById('usersList');
+        if (!container) return;
+        if (!allUsers.length) {
+            container.innerHTML = '<div class="user-item">Нет пользователей</div>';
+            return;
+        }
+        container.innerHTML = allUsers.map(user => {
+            const isOnline = onlineUserIds.has(user.id);
+            const statusClass = isOnline ? 'online' : 'offline';
+            const avatarHtml = user.avatar_url 
+                ? `<img class="user-avatar-small" src="${user.avatar_url}" alt="">` 
+                : `<div class="user-avatar-small" style="background:#e0c3b0; display:inline-flex; align-items:center; justify-content:center;">👤</div>`;
+            return `
+                <div class="user-item">
+                    <span class="user-status ${statusClass}"></span>
+                    ${avatarHtml}
+                    <span class="user-name">${escapeHtml(user.username)}</span>
+                    ${isOnline ? '<span style="font-size:10px; color:#2ecc71;">online</span>' : ''}
+                </div>
+            `;
+        }).join('');
+    }
     // ==================== API ====================
     async function fetchLikes() {
         try {
@@ -1279,26 +1312,41 @@ async function clearAllMedia() {
     function showToast(msg, dur=2000) { let t = document.querySelector('.toast-notify'); if(t) t.remove(); const toast = document.createElement('div'); toast.className = 'toast-notify'; toast.innerText = msg; document.body.appendChild(toast); setTimeout(() => toast.remove(), dur); }
 
     function initChat() {
-        if (socket) socket.disconnect();
-        socket = io();
-        socket.on('connect', () => socket.emit('join', currentUser.id));
-        socket.on('chat history', (msgs) => {
-            const div = document.getElementById('chatMessages');
+    if (socket) socket.disconnect();
+    socket = io();
+    socket.on('connect', () => socket.emit('join', currentUser.id));
+    
+    socket.on('online users', (onlineList) => {
+        onlineUserIds.clear();
+        onlineList.forEach(u => onlineUserIds.add(u.userId));
+        renderUsersList();
+    });
+    
+    socket.on('chat history', (msgs) => {
+        const div = document.getElementById('chatMessages');
         if (div) { 
             div.innerHTML = ''; 
             msgs.forEach(m => addMessageToChat(m.nickname, m.text, m.timestamp, m.avatar_url)); 
         }
     });
-        socket.on('chat message', m => addMessageToChat(m.nickname, m.text, m.timestamp, m.avatar_url));
-        socket.on('chat cleared', () => { const div = document.getElementById('chatMessages'); if (div) div.innerHTML = '<div class="message">Чат очищен</div>'; showToast('Чат очищен'); });
-        const input = document.getElementById('chatInput');
-        const btn = document.getElementById('sendBtn');
-        if (input && btn) {
-            const send = () => { const t = input.value.trim(); if (t) { socket.emit('chat message', { text: t }); input.value = ''; input.focus(); } };
-            btn.onclick = send;
-            input.onkeypress = (e) => { if (e.key === 'Enter') send(); };
-        }
+    socket.on('chat message', m => addMessageToChat(m.nickname, m.text, m.timestamp, m.avatar_url));
+    socket.on('chat cleared', () => { 
+        const div = document.getElementById('chatMessages'); 
+        if (div) div.innerHTML = '<div class="message">Чат очищен</div>'; 
+        showToast('Чат очищен'); 
+    });
+    
+    const input = document.getElementById('chatInput');
+    const btn = document.getElementById('sendBtn');
+    if (input && btn) {
+        const send = () => { const t = input.value.trim(); if (t) { socket.emit('chat message', { text: t }); input.value = ''; input.focus(); } };
+        btn.onclick = send;
+        input.onkeypress = (e) => { if (e.key === 'Enter') send(); };
     }
+    
+    // Загружаем всех пользователей один раз при инициализации чата
+    fetchAllUsers().then(() => renderUsersList());
+}
     function addMessageToChat(nick, text, ts, avatarUrl) {
     const div = document.getElementById('chatMessages');
     if (!div) return;
