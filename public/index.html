@@ -1050,7 +1050,7 @@ async function clearAllMedia() {
         }
         if (!added) { showToast('Нет подходящих файлов'); return; }
         try {
-            const res = await fetch('/api/upload', { method: 'POST', body: fd });
+            const res = await fetch('/api/upload', { method: 'POST', body: fd, credentials: 'include' });
             const result = await res.json();
             if (result.success) {
                 showToast(`✅ Загружено ${result.uploaded.length} файлов`);
@@ -1088,7 +1088,7 @@ async function clearAllMedia() {
     async function renderLightbox() {
         const item = mediaList[currentLightboxIndex];
         if (!item) return;
-        const fileUrl = `/uploads/${item.filename}`;
+        const fileUrl = item.filename;
         const like = likesData[item.id] || { count: 0, liked: false };
         const comments = commentsData[item.id] || [];
         lightbox.innerHTML = `
