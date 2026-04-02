@@ -532,6 +532,46 @@
             flex-wrap: wrap;
             gap: 8px;
         }
+        /* Список пользователей онлайн/офлайн */
+        .users-panel {
+            background: rgba(255,250,245,0.7);
+            border-radius: 30px;
+            padding: 12px;
+            margin-bottom: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 30px;
+            font-size: 13px;
+        }
+        .user-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .online {
+            background: #2ecc71;
+            box-shadow: 0 0 4px #2ecc71;
+        }
+        .offline {
+            background: #95a5a6;
+        }
+        .user-avatar-small {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .user-name {
+            flex: 1;
+            color: #4a3b2f;
+        }
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -666,6 +706,7 @@
             margin-right: 10px;
             font-size: 16px;
         }
+                
         @media (max-width: 800px) {
             .container { flex-direction: column; padding: 1rem; }
             .chat-section { height: 400px; }
@@ -908,6 +949,10 @@
                 </div>
                 <div class="chat-section">
                     <div class="chat-header"><h3>💬 Чат</h3><button id="clearChatBtn" class="btn btn-small">🧹 Очистить</button></div>
+                    <div class="users-panel" id="usersPanel">
+                    <div style="font-weight:bold; margin-bottom:6px;">👥 Пользователи</div>
+                    <div id="usersList">Загрузка...</div>
+                    </div>
                     <div class="chat-messages" id="chatMessages"></div>
                     <div class="chat-input-area">
                         <input type="text" id="chatInput" placeholder="Сообщение...">
