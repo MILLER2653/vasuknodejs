@@ -13,8 +13,22 @@
             font-family: 'Segoe UI', system-ui, sans-serif;
         }
         body {
-            background: radial-gradient(circle at 10% 30%, #ffdde1, #ee9ca7);
+            background: url('https://raw.githubusercontent.com/MILLER2653/vasuknodejs/refs/heads/main/public/Copilot_20260402_171500.png') no-repeat center center fixed;
+            background-size: cover;
             min-height: 100vh;
+            position: relative;
+        }
+        
+        /* Затемнение, чтобы контент читался лучше (регулируйте прозрачность) */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: -1;
         }
         /* Фон для страницы входа */
         body.auth-page {
