@@ -67,7 +67,7 @@ app.get('/api/media', async (req, res) => {
         const { data, error } = await supabase
             .from('gallery')
             .select('*')
-            .order('uploadedAt', { ascending: false });
+            .order('uploadedat', { ascending: false });
         if (error) {
             console.error('Ошибка Supabase при получении медиа:', error);
             return res.status(500).json({ error: error.message });
@@ -88,7 +88,7 @@ app.post('/api/upload', upload.array('files', 20), async (req, res) => {
             const item = {
                 id,
                 filename: publicUrl,
-                originalName: file.originalname,
+                originalname: file.originalname,
                 type: file.mimetype,
                 size: file.size,
                 uploadedAt: new Date().toISOString()
