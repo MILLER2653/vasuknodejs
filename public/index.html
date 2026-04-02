@@ -1217,16 +1217,26 @@ async function clearAllMedia() {
             input.onkeypress = (e) => { if (e.key === 'Enter') send(); };
         }
     }
-    function addMessageToChat(nick, text, ts) {
-        const div = document.getElementById('chatMessages');
-        if (!div) return;
-        const msgDiv = document.createElement('div');
-        msgDiv.className = 'message';
-        const timeStr = ts ? new Date(ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
-        msgDiv.innerHTML = `<strong>${escapeHtml(nick)}</strong> <small>${timeStr}</small><br>${escapeHtml(text)}`;
-        div.appendChild(msgDiv);
-        div.scrollTop = div.scrollHeight;
-    }
+    function addMessageToChat(nick, text, ts, avatarUrl) {
+    const div = document.getElementById('chatMessages');
+    if (!div) return;
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'message';
+    const timeStr = ts ? new Date(ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+    const avatarHtml = avatarUrl ? 
+        `<img class="chat-avatar" src="${avatarUrl}" alt="avatar">` : 
+        `<div class="chat-avatar-placeholder">👤</div>`;
+    msgDiv.innerHTML = `
+        <div style="display: flex; align-items: center; margin-bottom: 4px;">
+            ${avatarHtml}
+            <strong>${escapeHtml(nick)}</strong>
+            <small style="margin-left: 8px;">${timeStr}</small>
+        </div>
+        <div style="margin-left: 40px;">${escapeHtml(text)}</div>
+    `;
+    div.appendChild(msgDiv);
+    div.scrollTop = div.scrollHeight;
+}
 
     showKeyPage();
 </script>
