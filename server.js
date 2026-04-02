@@ -94,7 +94,7 @@ app.post('/api/upload', upload.array('files', 20), async (req, res) => {
                 originalname: file.originalname,
                 type: file.mimetype,
                 size: file.size,
-                uploadedAt: new Date().toISOString()
+                uploadedat: new Date().toISOString()
             };
             const { error } = await supabase.from('gallery').insert(item);
             if (error) {
