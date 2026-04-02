@@ -1205,9 +1205,12 @@ async function clearAllMedia() {
         socket.on('connect', () => socket.emit('join', currentUser.id));
         socket.on('chat history', (msgs) => {
             const div = document.getElementById('chatMessages');
-            if (div) { div.innerHTML = ''; msgs.forEach(m => addMessageToChat(m.nickname, m.text, m.timestamp)); }
-        });
-        socket.on('chat message', m => addMessageToChat(m.nickname, m.text, m.timestamp));
+        if (div) { 
+            div.innerHTML = ''; 
+            msgs.forEach(m => addMessageToChat(m.nickname, m.text, m.timestamp, m.avatar_url)); 
+        }
+    });
+        socket.on('chat message', m => addMessageToChat(m.nickname, m.text, m.timestamp, m.avatar_url));
         socket.on('chat cleared', () => { const div = document.getElementById('chatMessages'); if (div) div.innerHTML = '<div class="message">Чат очищен</div>'; showToast('Чат очищен'); });
         const input = document.getElementById('chatInput');
         const btn = document.getElementById('sendBtn');
