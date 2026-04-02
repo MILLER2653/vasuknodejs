@@ -13,8 +13,22 @@
             font-family: 'Segoe UI', system-ui, sans-serif;
         }
         body {
-            background: radial-gradient(circle at 10% 30%, #ffdde1, #ee9ca7);
+            background: url('https://raw.githubusercontent.com/MILLER2653/vasuknodejs/refs/heads/main/img/mainfon.jpg') no-repeat center center fixed;
+            background-size: cover;
             min-height: 100vh;
+            position: relative;
+        }
+        
+        /* Затемнение, чтобы текст читался лучше (опционально) */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5); /* регулируйте прозрачность */
+            z-index: -1;
         }
         /* Красивая страница ввода ключа */
         .key-overlay {
