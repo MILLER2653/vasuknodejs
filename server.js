@@ -36,14 +36,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Multer для временного хранения в памяти (файлы сразу уходят в Supabase Storage)
+// Multer для временного хранения в памяти
 const memoryStorage = multer.memoryStorage();
 const upload = multer({ storage: memoryStorage, limits: { fileSize: 500 * 1024 * 1024 } });
 const avatarUpload = multer({ storage: memoryStorage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
-
-// Загрузка файла в Supabase Storage и получение публичного URL
 async function uploadFileToStorage(bucket, fileBuffer, originalName, mimetype) {
     const ext = path.extname(originalName);
     const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 8)}${ext}`;
@@ -55,7 +53,6 @@ async function uploadFileToStorage(bucket, fileBuffer, originalName, mimetype) {
     return publicUrlData.publicUrl;
 }
 
-// Удаление файла из Storage
 async function deleteFileFromStorage(bucket, fileUrl) {
     const fileName = fileUrl.split('/').pop();
     const { error } = await supabase.storage.from(bucket).remove([fileName]);
@@ -71,9 +68,13 @@ app.get('/api/media', async (req, res) => {
             .from('gallery')
             .select('*')
             .order('uploadedAt', { ascending: false });
-        if (error) throw error;
+        if (error) {
+            console.error('Ошибка Supabase при получении медиа:', error);
+            return res.status(500).json({ error: error.message });
+        }
         res.json(data);
     } catch (err) {
+        console.error('Ошибка в /api/media:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -93,12 +94,15 @@ app.post('/api/upload', upload.array('files', 20), async (req, res) => {
                 uploadedAt: new Date().toISOString()
             };
             const { error } = await supabase.from('gallery').insert(item);
-            if (error) throw error;
+            if (error) {
+                console.error('Ошибка вставки в gallery:', error);
+                throw error;
+            }
             newItems.push(item);
         }
         res.json({ success: true, uploaded: newItems });
     } catch (err) {
-        console.error(err);
+        console.error('Ошибка в /api/upload:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -113,14 +117,12 @@ app.delete('/api/media/:id', async (req, res) => {
             .eq('id', req.params.id)
             .single();
         if (fetchError || !item) return res.status(404).json({ error: 'Пост не найден' });
-        // Удаляем файл из Storage
         await deleteFileFromStorage('uploads', item.filename);
-        // Удаляем запись из таблицы (лайки и комментарии удалятся каскадно)
         const { error } = await supabase.from('gallery').delete().eq('id', req.params.id);
         if (error) throw error;
         res.json({ success: true });
     } catch (err) {
-        console.error(err);
+        console.error('Ошибка в DELETE /api/media/:id:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -138,7 +140,7 @@ app.delete('/api/media', async (req, res) => {
         if (error) throw error;
         res.json({ success: true });
     } catch (err) {
-        console.error(err);
+        console.error('Ошибка в DELETE /api/media:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -148,7 +150,6 @@ app.post('/api/likes', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
     const { mediaId } = req.body;
     try {
-        // Проверяем, существует ли лайк
         const { data: existing } = await supabase
             .from('likes')
             .select('id')
@@ -162,19 +163,22 @@ app.post('/api/likes', async (req, res) => {
         }
         res.json({ liked: !existing });
     } catch (err) {
+        console.error('Ошибка в /api/likes:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
 app.get('/api/likes', async (req, res) => {
     try {
-        const { data: media } = await supabase.from('gallery').select('id');
+        const { data: media, error: mediaError } = await supabase.from('gallery').select('id');
+        if (mediaError) throw mediaError;
         const result = {};
         for (const item of media) {
-            const { count } = await supabase
+            const { count, error: countError } = await supabase
                 .from('likes')
                 .select('*', { count: 'exact', head: true })
                 .eq('media_id', item.id);
+            if (countError) throw countError;
             let liked = false;
             if (req.session.userId) {
                 const { data: like } = await supabase
@@ -189,6 +193,7 @@ app.get('/api/likes', async (req, res) => {
         }
         res.json(result);
     } catch (err) {
+        console.error('Ошибка в GET /api/likes:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -223,13 +228,15 @@ app.post('/api/comments', async (req, res) => {
         }));
         res.json({ success: true, comments: formatted });
     } catch (err) {
+        console.error('Ошибка в POST /api/comments:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
 app.get('/api/comments', async (req, res) => {
     try {
-        const { data: media } = await supabase.from('gallery').select('id');
+        const { data: media, error: mediaError } = await supabase.from('gallery').select('id');
+        if (mediaError) throw mediaError;
         const result = {};
         for (const item of media) {
             const { data: comments, error } = await supabase
@@ -252,6 +259,7 @@ app.get('/api/comments', async (req, res) => {
         }
         res.json(result);
     } catch (err) {
+        console.error('Ошибка в GET /api/comments:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -262,9 +270,11 @@ app.post('/api/avatar', avatarUpload.single('avatar'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
     try {
         const publicUrl = await uploadFileToStorage('avatars', req.file.buffer, req.file.originalname, req.file.mimetype);
-        await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', req.session.userId);
+        const { error } = await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', req.session.userId);
+        if (error) throw error;
         res.json({ success: true, avatar_url: publicUrl });
     } catch (err) {
+        console.error('Ошибка в POST /api/avatar:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -291,6 +301,7 @@ app.post('/api/register', async (req, res) => {
         req.session.userId = newUser.id;
         res.json({ success: true, user: newUser });
     } catch (err) {
+        console.error('Ошибка в POST /api/register:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -310,6 +321,7 @@ app.post('/api/login', async (req, res) => {
         req.session.userId = user.id;
         res.json({ success: true, user: { id: user.id, username: user.username, avatar_url: user.avatar_url } });
     } catch (err) {
+        console.error('Ошибка в POST /api/login:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -328,6 +340,7 @@ app.get('/api/me', async (req, res) => {
         }
         res.json(user);
     } catch (err) {
+        console.error('Ошибка в GET /api/me:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -346,12 +359,13 @@ app.delete('/api/chat', async (req, res) => {
         io.emit('chat cleared');
         res.json({ success: true });
     } catch (err) {
+        console.error('Ошибка в DELETE /api/chat:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
 // --- SOCKET.IO (чат + онлайн) ---
-let onlineUsers = new Map(); // socketId -> userId
+let onlineUsers = new Map();
 
 function updateOnlineCount() {
     io.emit('online count', onlineUsers.size);
@@ -366,7 +380,6 @@ io.on('connection', (socket) => {
         onlineUsers.set(socket.id, userId);
         updateOnlineCount();
 
-        // Отправляем историю сообщений
         const { data: messages, error } = await supabase
             .from('messages')
             .select('*')
@@ -408,4 +421,3 @@ io.on('connection', (socket) => {
 server.listen(PORT, () => {
     console.log(`Сервер запущен: http://localhost:${PORT}`);
 });
-
