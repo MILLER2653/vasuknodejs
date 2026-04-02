@@ -10,12 +10,12 @@ const { createClient } = require('@supabase/supabase-js');
 
 // ==================== НАСТРОЙКИ SUPABASE ====================
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.error('❌ Ошибка: не заданы переменные окружения SUPABASE_URL и SUPABASE_ANON_KEY');
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    console.error('❌ Ошибка: не заданы SUPABASE_URL или SUPABASE_SERVICE_ROLE_KEY');
     process.exit(1);
 }
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 // ============================================================
 
 const app = express();
@@ -80,6 +80,9 @@ app.get('/api/media', async (req, res) => {
 });
 
 app.post('/api/upload', upload.array('files', 20), async (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Не авторизован' });
+    }
     try {
         const newItems = [];
         for (const file of req.files) {
@@ -266,6 +269,9 @@ app.get('/api/comments', async (req, res) => {
 
 // --- АВАТАР ---
 app.post('/api/avatar', avatarUpload.single('avatar'), async (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Не авторизован' });
+    }
     if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
     if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
     try {
