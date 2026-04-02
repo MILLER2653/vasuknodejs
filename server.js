@@ -395,28 +395,30 @@ io.on('connection', (socket) => {
     });
 
     socket.on('chat message', async (msg) => {
-        if (!socket.userId) return;
-        const { data: user } = await supabase
-            .from('users')
-            .select('username')
-            .eq('id', socket.userId)
-            .single();
-        if (!user) return;
-        const newMsg = {
-            id: Date.now(),
-            user_id: socket.userId,
-            nickname: user.username,
-            text: msg.text,
-            timestamp: new Date().toISOString()
-        };
-        const { error } = await supabase.from('messages').insert({
-            user_id: socket.userId,
-            nickname: user.username,
-            text: msg.text,
-            timestamp: newMsg.timestamp
-        });
-        if (!error) io.emit('chat message', newMsg);
+    if (!socket.userId) return;
+    const { data: user } = await supabase
+        .from('users')
+        .select('username, avatar_url')
+        .eq('id', socket.userId)
+        .single();
+    if (!user) return;
+    const newMsg = {
+        id: Date.now(),
+        user_id: socket.userId,
+        nickname: user.username,
+        avatar_url: user.avatar_url,
+        text: msg.text,
+        timestamp: new Date().toISOString()
+    };
+    const { error } = await supabase.from('messages').insert({
+        user_id: socket.userId,
+        nickname: user.username,
+        avatar_url: user.avatar_url,
+        text: msg.text,
+        timestamp: newMsg.timestamp
     });
+    if (!error) io.emit('chat message', newMsg);
+});
 
     socket.on('disconnect', () => {
         onlineUsers.delete(socket.id);
