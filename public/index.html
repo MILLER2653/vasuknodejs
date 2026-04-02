@@ -930,7 +930,7 @@
             const post = createPostElement(item, idx, like, comments);
             galleryEl.appendChild(post);
             if (item.type.startsWith('video/')) {
-                const videoUrl = `/uploads/${item.filename}`;
+                const videoUrl = item.filename;
                 const durationSpan = post.querySelector('.video-duration');
                 getVideoDuration(videoUrl, dur => { if (durationSpan) durationSpan.innerText = formatDuration(dur); });
             }
@@ -945,7 +945,7 @@
         div.dataset.id = item.id;
         const mediaDiv = document.createElement('div');
         mediaDiv.className = 'post-media';
-        const fileUrl = `/uploads/${item.filename}`;
+        const fileUrl = item.filename;
         if (item.type.startsWith('image/')) {
             const img = document.createElement('img');
             img.src = fileUrl;
