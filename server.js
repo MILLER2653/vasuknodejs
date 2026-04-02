@@ -369,60 +369,90 @@ app.delete('/api/chat', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+// --- ВСЕ ПОЛЬЗОВАТЕЛИ (для списка офлайн/онлайн) ---
+app.get('/api/users', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('id, username, avatar_url')
+            .order('username');
+        if (error) throw error;
+        res.json(data);
+    } catch (err) {
+        console.error('Ошибка в /api/users:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+// --- SOCKET.IO (чат + онлайн с именами) ---
+let onlineUsersMap = new Map(); // key: socket.id, value: { userId, username, avatar_url }
 
-// --- SOCKET.IO (чат + онлайн) ---
-let onlineUsers = new Map();
-
-function updateOnlineCount() {
-    io.emit('online count', onlineUsers.size);
+function broadcastOnlineUsers() {
+    const onlineList = Array.from(onlineUsersMap.values()).map(u => ({
+        userId: u.userId,
+        username: u.username,
+        avatar_url: u.avatar_url
+    }));
+    io.emit('online users', onlineList);
 }
 
 io.on('connection', (socket) => {
-    onlineUsers.set(socket.id, null);
-    updateOnlineCount();
+    // Временно храним без userId (до события join)
+    onlineUsersMap.set(socket.id, { userId: null, username: null, avatar_url: null });
+    broadcastOnlineUsers();
 
     socket.on('join', async (userId) => {
+        if (!userId) return;
+        // Получаем данные пользователя из БД (username и avatar_url)
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('username, avatar_url')
+            .eq('id', userId)
+            .single();
+        if (error || !user) return;
+        
         socket.userId = userId;
-        onlineUsers.set(socket.id, userId);
-        updateOnlineCount();
+        onlineUsersMap.set(socket.id, {
+            userId: userId,
+            username: user.username,
+            avatar_url: user.avatar_url
+        });
+        broadcastOnlineUsers();
 
-        const { data: messages, error } = await supabase
+        // Отправляем историю чата (последние 100 сообщений)
+        const { data: messages, error: msgError } = await supabase
             .from('messages')
             .select('*')
             .order('timestamp', { ascending: true })
             .limit(100);
-        if (!error && messages) socket.emit('chat history', messages);
+        if (!msgError && messages) socket.emit('chat history', messages);
     });
 
     socket.on('chat message', async (msg) => {
-    if (!socket.userId) return;
-    const { data: user } = await supabase
-        .from('users')
-        .select('username, avatar_url')
-        .eq('id', socket.userId)
-        .single();
-    if (!user) return;
-    const newMsg = {
-        id: Date.now(),
-        user_id: socket.userId,
-        nickname: user.username,
-        avatar_url: user.avatar_url,
-        text: msg.text,
-        timestamp: new Date().toISOString()
-    };
-    const { error } = await supabase.from('messages').insert({
-        user_id: socket.userId,
-        nickname: user.username,
-        avatar_url: user.avatar_url,
-        text: msg.text,
-        timestamp: newMsg.timestamp
+        if (!socket.userId) return;
+        const userData = onlineUsersMap.get(socket.id);
+        if (!userData || !userData.username) return;
+        
+        const newMsg = {
+            id: Date.now(),
+            user_id: socket.userId,
+            nickname: userData.username,
+            avatar_url: userData.avatar_url,
+            text: msg.text,
+            timestamp: new Date().toISOString()
+        };
+        const { error } = await supabase.from('messages').insert({
+            user_id: socket.userId,
+            nickname: userData.username,
+            avatar_url: userData.avatar_url,
+            text: msg.text,
+            timestamp: newMsg.timestamp
+        });
+        if (!error) io.emit('chat message', newMsg);
     });
-    if (!error) io.emit('chat message', newMsg);
-});
 
     socket.on('disconnect', () => {
-        onlineUsers.delete(socket.id);
-        updateOnlineCount();
+        onlineUsersMap.delete(socket.id);
+        broadcastOnlineUsers();
     });
 });
 
